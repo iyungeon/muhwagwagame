@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>무화과 게임 (Fig Box) - 합이 10이 되는 숫자 퍼즐</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Jua & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-cream: #FAF5F0;
+            --board-bg: #FFFDFB;
+            --fig-purple: #5C2C4D;
+            --fig-purple-light: #8A4B76;
+            --fig-flesh: #E55365;
+            --fig-flesh-light: #FF8A98;
+            --accent-gold: #F59E0B;
+            --accent-green: #10B981;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-cream);
+            background-image: 
+                radial-gradient(#EADCD3 1px, transparent 1px),
+                radial-gradient(#EADCD3 1px, #FAF5F0 1px);
+            background-size: 24px 24px;
+            background-position: 0 0, 12px 12px;
+            color: #3D2335;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+
+        /* 게임 보드 컨테이너 및 캔버스 스타일 */
+        #board-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            aspect-ratio: 17 / 10;
+            background: var(--board-bg);
+            border-radius: 20px;
+            box-shadow: 
+                0 12px 30px -5px rgba(92, 44, 77, 0.15),
+                0 4px 10px -2px rgba(92, 44, 77, 0.08),
+                inset 0 0 0 3px #EAD8E2;
+            overflow: hidden;
+            touch-action: none; /* 보드 위에서는 브라우저 스크롤 방지 */
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 버튼 스타일링 */
+        .btn-fig {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 0 rgba(61, 35, 53, 0.2);
+        }
+        .btn-fig:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 rgba(61, 35, 53, 0.2);
+        }
+        .btn-fig:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 rgba(61, 35, 53, 0.2);
+        }
+        .btn-fig:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* 모달 애니메이션 */
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.85) translateY(15px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-modal {
+            animation: modalPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* 뱃지 펄스 */
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+        .animate-pulse-slow {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        /* 모바일 가로모드 권장 안내 (세로 화면이 너무 좁을 때) */
+        @media (max-width: 640px) and (orientation: portrait) {
+            .portrait-tip {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 md:p-6">
+
+    <!-- 상단 헤더 & 컨트롤 바 -->
+    <header class="w-full max-w-[960px] mb-3 sm:mb-4">
+        <div class="bg-white/90 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow-md border-2 border-[#EAD8E2] flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+            
+            <!-- 타이틀 영역 -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-[#7A3B66] to-[#4A1F3D] flex items-center justify-center shadow-inner relative overflow-hidden">
+                    <!-- 미니 무화과 아이콘 SVG -->
+                    <svg viewBox="0 0 40 40" class="w-8 h-8">
+                        <path d="M20 6 C22 6, 24 11, 28 15 C33 20, 33 29, 27 33 C22 36, 18 36, 13 33 C7 29, 7 20, 12 15 C16 11, 18 6, 20 6 Z" fill="#F472B6"/>
+                        <path d="M20 8 C21.5 8, 23 12, 26.5 16 C30.5 20, 30.5 27.5, 25.5 31 C21.5 33.5, 18.5 33.5, 14.5 31 C9.5 27.5, 9.5 20, 13.5 16 C17 12, 18.5 8, 20 8 Z" fill="#E11D48"/>
+                        <circle cx="17" cy="23" r="1.2" fill="#FDE047"/>
+                        <circle cx="23" cy="23" r="1.2" fill="#FDE047"/>
+                        <circle cx="20" cy="27" r="1.2" fill="#FDE047"/>
+                        <circle cx="20" cy="19" r="1.2" fill="#FDE047"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-jua text-xl sm:text-2xl text-[#4A1F3D] leading-none tracking-wide">무화과 게임</h1>
+                    <p class="text-[11px] sm:text-xs text-[#8A627D] font-medium mt-0.5">드래그해서 합이 <span class="text-[#E11D48] font-bold">10</span>이 되게 만드세요!</p>
+                </div>
+            </div>
+
+            <!-- 점수판 (현재 점수 & 최고 점수) -->
+            <div class="flex items-center gap-2 sm:gap-3 bg-[#FAF3F7] px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-[#EAD8E2]">
+                <div class="text-center pr-2 sm:pr-3 border-r border-[#EAD8E2]">
+                    <div class="text-[10px] sm:text-xs font-bold text-[#8A627D]">현재 점수</div>
+                    <div id="score-display" class="font-jua text-xl sm:text-2xl text-[#E11D48] leading-tight">0</div>
+                </div>
+                <div class="text-center pl-1">
+                    <div class="text-[10px] sm:text-xs font-bold text-[#8A627D] flex items-center justify-center gap-1">
+                        <span>👑 최고 기록</span>
+                    </div>
+                    <div id="best-score-display" class="font-jua text-xl sm:text-2xl text-[#5C2C4D] leading-tight">0</div>
+                </div>
+            </div>
+
+            <!-- 유틸리티 버튼 그룹 (힌트, 사운드, 리셋) -->
+            <div class="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0">
+                <!-- 힌트 버튼 -->
+                <button id="btn-hint" class="btn-fig bg-amber-400 hover:bg-amber-300 text-[#4A1F3D] font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2 rounded-xl flex items-center gap-1.5" title="합이 10이 되는 조합 찾기">
+                    <span>💡 힌트</span>
+                    <span id="hint-count" class="bg-white/80 text-[#4A1F3D] px-1.5 py-0.5 rounded-md text-xs font-black">3</span>
+                </button>
+
+                <!-- 효과음 토글 -->
+                <button id="btn-sfx" class="btn-fig bg-[#F3E8EF] hover:bg-[#EAD8E2] text-[#4A1F3D] p-2 sm:p-2.5 rounded-xl" title="효과음 켜기/끄기">
+                    <span id="icon-sfx" class="text-base sm:text-lg leading-none">🔊</span>
+                </button>
+
+                <!-- BGM 토글 -->
+                <button id="btn-bgm" class="btn-fig bg-[#F3E8EF] hover:bg-[#EAD8E2] text-[#4A1F3D] p-2 sm:p-2.5 rounded-xl" title="배경음악 켜기/끄기">
+                    <span id="icon-bgm" class="text-base sm:text-lg leading-none">🎵</span>
+                </button>
+
+                <!-- 리셋 버튼 -->
+                <button id="btn-reset" class="btn-fig bg-[#6D355B] hover:bg-[#5C2C4D] text-white font-bold text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-1" title="새 게임 시작">
+                    <span>🔄</span>
+                    <span class="hidden md:inline">다시 시작</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 타이머 게이지 바 -->
+        <div class="mt-2.5 bg-white/90 rounded-full p-1.5 shadow-sm border border-[#EAD8E2] flex items-center gap-3">
+            <div class="flex items-center gap-1.5 pl-2 min-w-[78px]">
+                <span class="text-sm">⏱️</span>
+                <span id="time-text" class="font-jua text-base sm:text-lg text-[#4A1F3D]">120초</span>
+            </div>
+            <div class="flex-1 h-3.5 sm:h-4 bg-[#F3E8EF] rounded-full overflow-hidden relative shadow-inner">
+                <div id="time-bar" class="h-full w-full bg-gradient-to-r from-[#10B981] via-[#84CC16] to-[#EAB308] rounded-full transition-all duration-200 ease-linear"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 모바일 세로모드 안내 배너 -->
+    <div class="portrait-tip hidden w-full max-w-[960px] mb-2 bg-amber-100/90 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-xl text-xs items-center justify-center gap-2">
+        <span>📱 화면을 <strong>가로 모드</strong>로 회전하시면 무화과가 더 크게 보여 플레이하기 편해요!</span>
+    </div>
+
+    <!-- 메인 게임 보드 영역 -->
+    <main class="w-full max-w-[960px] flex flex-col items-center relative">
+        <div id="board-wrapper">
+            <canvas id="game-canvas"></canvas>
+
+            <!-- 시작 전 오버레이 화면 -->
+            <div id="start-overlay" class="absolute inset-0 bg-[#3D2335]/75 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-20 text-center">
+                <div class="bg-[#FFFDFB] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-4 border-[#EAD8E2] animate-modal">
+                    <div class="w-20 h-20 mx-auto mb-3 bg-[#FAF3F7] rounded-2xl flex items-center justify-center border-2 border-[#EAD8E2] shadow-inner">
+                        <svg viewBox="0 0 60 60" class="w-16 h-16">
+                            <!-- 귀엽고 통통한 무화과 일러스트 -->
+                            <path d="M30 8 C33 8, 36 15, 42 21 C49 28, 49 42, 40 48 C33 52, 27 52, 20 48 C11 42, 11 28, 18 21 C24 15, 27 8, 30 8 Z" fill="#6D355B"/>
+                            <path d="M30 14 C32 14, 34.5 19, 39 24 C44.5 30, 44.5 40, 37.5 44.5 C32.5 48, 27.5 48, 22.5 44.5 C15.5 40, 15.5 30, 21 24 C25.5 19, 28 14, 30 14 Z" fill="#FBCFE8"/>
+                            <path d="M30 17 C31.5 17, 33.5 21, 37.5 25.5 C42 30.5, 42 38.5, 36 42.5 C32 45, 28 45, 24 42.5 C18 38.5, 18 30.5, 22.5 25.5 C26.5 21, 28.5 17, 30 17 Z" fill="#E11D48"/>
+                            <circle cx="25" cy="32" r="1.5" fill="#FEF08A"/>
+                            <circle cx="35" cy="32" r="1.5" fill="#FEF08A"/>
+                            <circle cx="30" cy="38" r="1.5" fill="#FEF08A"/>
+                            <circle cx="30" cy="26" r="1.5" fill="#FEF08A"/>
+                            <circle cx="26" cy="36" r="1.2" fill="#FEF08A"/>
+                            <circle cx="34" cy="36" r="1.2" fill="#FEF08A"/>
+                        </svg>
+                    </div>
+                    <h2 class="font-jua text-3xl sm:text-4xl text-[#4A1F3D] mb-2">무화과 게임</h2>
+                    <p class="text-sm sm:text-base text-[#6E4761] mb-5 leading-relaxed">
+                        마우스나 손가락으로 사각형을 드래그하여<br>
+                        안에 들어있는 숫자의 합이 <span class="inline-block bg-[#FFE4E6] text-[#E11D48] font-black px-2 py-0.5 rounded-md">정확히 10</span>이 되게 만드세요!
+                    </p>
+                    <div class="bg-[#FAF3F7] rounded-xl p-3 mb-6 text-xs sm:text-sm text-[#5C2C4D] space-y-1 text-left border border-[#EAD8E2]">
+                        <div>✨ <strong>제한 시간:</strong> 120초 (2분)</div>
+                        <div>🍇 <strong>점수 획득:</strong> 일반 숫자 <strong>+1점</strong> / 황금 무화과(10개) <strong>+5점!</strong></div>
+                        <div>🔄 <strong>보너스 리필:</strong> 시간 내에 판을 다 비우면 새 판이 열려 계속 도전할 수 있어요!</div>
+                    </div>
+                    <button id="btn-start" class="btn-fig w-full bg-gradient-to-r from-[#E11D48] to-[#BE123C] hover:from-[#F43F5E] hover:to-[#E11D48] text-white font-jua text-2xl py-3.5 rounded-2xl shadow-lg tracking-wider">
+                        게임 시작하기!
+                    </button>
+                </div>
+            </div>
+
+            <!-- 게임 종료 결과 모달 -->
+            <div id="gameover-overlay" class="hidden absolute inset-0 bg-[#3D2335]/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-30 text-center">
+                <div class="bg-[#FFFDFB] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-4 border-[#EAD8E2] animate-modal">
+                    <div id="new-record-badge" class="hidden inline-block bg-amber-400 text-[#4A1F3D] font-black text-xs px-3 py-1 rounded-full mb-2 shadow-sm animate-pulse-slow">
+                        🎉 NEW RECORD! 최고 기록 갱신! 🎉
+                    </div>
+                    <h2 id="gameover-title" class="font-jua text-3xl sm:text-4xl text-[#4A1F3D] mb-1">타임 오버!</h2>
+                    <p id="gameover-subtitle" class="text-sm text-[#8A627D] mb-5">수고하셨습니다! 달콤한 무화과 수확 결과입니다.</p>
+
+                    <div class="bg-[#FAF3F7] rounded-2xl p-4 mb-6 border-2 border-[#EAD8E2] grid grid-cols-2 gap-3">
+                        <div class="bg-white rounded-xl p-3 shadow-sm">
+                            <div class="text-xs font-bold text-[#8A627D]">최종 점수</div>
+                            <div id="final-score" class="font-jua text-3xl sm:text-4xl text-[#E11D48] mt-1">0</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 shadow-sm">
+                            <div class="text-xs font-bold text-[#8A627D]">최고 점수</div>
+                            <div id="final-best-score" class="font-jua text-3xl sm:text-4xl text-[#5C2C4D] mt-1">0</div>
+                        </div>
+                        <div class="col-span-2 bg-white rounded-xl p-2.5 shadow-sm flex items-center justify-between px-4">
+                            <span class="text-xs sm:text-sm font-bold text-[#6E4761]">제거한 타일 / 스페셜 무화과</span>
+                            <span id="final-figs-count" class="font-jua text-base sm:text-lg text-[#10B981]">0개 (무화과 0개)</span>
+                        </div>
+                    </div>
+
+                    <button id="btn-restart-modal" class="btn-fig w-full bg-gradient-to-r from-[#6D355B] to-[#4A1F3D] hover:from-[#8A4B76] hover:to-[#5C2C4D] text-white font-jua text-2xl py-3.5 rounded-2xl shadow-lg">
+                        한 판 더 하기 🔄
+                    </button>
+                </div>
+            </div>
+
+            <!-- 토스트 알림 (더 이상 10 조합 없을 때 등) -->
+            <div id="toast-msg" class="pointer-events-none opacity-0 transition-opacity duration-300 absolute top-4 left-1/2 -translate-x-1/2 bg-[#4A1F3D]/95 text-white px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg z-20 whitespace-nowrap">
+                메시지
+            </div>
+        </div>
+
+        <!-- 게임 종료 후 빨간 오답 보드를 가리지 않고 아래쪽에 깔끔하게 표시되는 안내 배너 -->
+        <div id="gameover-banner" class="hidden w-full max-w-[960px] mt-3 bg-[#FFFDFB] border-2 border-[#E11D48] rounded-2xl px-4 py-3 shadow-md flex items-center justify-between gap-3 animate-modal">
+            <div class="text-left">
+                <div class="flex items-center gap-2">
+                    <span id="banner-title" class="font-jua text-lg sm:text-xl text-[#E11D48]">타임 오버!</span>
+                    <span id="banner-new-record" class="hidden bg-amber-400 text-[#4A1F3D] font-black text-[11px] px-2.5 py-0.5 rounded-full">NEW RECORD!</span>
+                </div>
+                <p id="banner-subtitle" class="text-xs sm:text-sm text-[#4A1F3D] font-bold mt-0.5">최종 점수: 0점</p>
+            </div>
+            <button id="btn-restart-banner" class="btn-fig shrink-0 bg-gradient-to-r from-[#6D355B] to-[#4A1F3D] hover:from-[#8A4B76] hover:to-[#5C2C4D] text-white font-jua text-base sm:text-lg px-5 py-2.5 rounded-xl shadow">
+                다시 하기 🔄
+            </button>
+        </div>
+    </main>
+
+    <!-- 하단 간단한 조작 가이드 -->
+    <footer class="w-full max-w-[960px] mt-3 text-center text-xs text-[#8A627D] flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        <span>🖱️ <strong>PC:</strong> 마우스 왼쪽 버튼 드래그</span>
+        <span>👆 <strong>모바일:</strong> 터치 후 드래그</span>
+        <span>🎯 빈 칸을 포함해서 드래그해도 숫자 합이 10이면 OK!</span>
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * 무화과 게임 (Fig Box) - 메인 게임 로직 & Web Audio 사운드 엔진
+         * ============================================================================
+         */
+
+        // --- 1. 상수 및 게임 설정 ---
+        const COLS = 17;
+        const ROWS = 10;
+        const TOTAL_CELLS = COLS * ROWS; // 170개
+        const SPECIAL_FIG_COUNT = 10; // 보드 내 스페셜 무화과 개수
+        const NORMAL_SCORE = 1;
+        const FIG_SCORE = 5;
+        const GAME_DURATION = 120; // 120초
+        const MAX_HINTS = 3;
+        const STORAGE_KEY_BEST = 'fig_box_best_score_v2';
+
+        // --- 2. Web Audio API 사운드 매니저 (외부 오디오 파일 없이 자체 합성) ---
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.sfxEnabled = true;
+                this.bgmEnabled = false;
+                this.bgmTimer = null;
+                this.bgmStep = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            // 경쾌한 팝(Pop) 사운드 (개수에 따라 음높이 살짝 상승)
+            playPop(comboCount = 2) {
+                if (!this.sfxEnabled) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const baseFreq = 420 + Math.min(comboCount, 8) * 45;
+
+                // 메인 방울 팝 음
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.65, now + 0.11);
+
+                gain.gain.setValueAtTime(0.28, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.14);
+
+                // 반짝이는 하모니 화음
+                const osc2 = this.ctx.createOscillator();
+                const gain2 = this.ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(baseFreq * 1.5, now + 0.04);
+                osc2.frequency.exponentialRampToValueAtTime(baseFreq * 2.0, now + 0.16);
+
+                gain2.gain.setValueAtTime(0.15, now + 0.04);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+
+                osc2.connect(gain2);
+                gain2.connect(this.ctx.destination);
+                osc2.start(now + 0.04);
+                osc2.stop(now + 0.18);
+            }
+
+            // 드래그 시작/선택 시 가벼운 틱 사운드
+            playTick() {
+                if (!this.sfxEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(680, now);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.035);
+            }
+
+            // 합이 10이 아닐 때 부드러운 실패음
+            playFail() {
+                if (!this.sfxEnabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(210, now);
+                osc.frequency.linearRampToValueAtTime(155, now + 0.12);
+
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            // 힌트 사용 효과음
+            playHint() {
+                if (!this.sfxEnabled) return;
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + idx * 0.055;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.19);
+                });
+            }
+
+            // 게임 종료 팡파르/알림음
+            playGameOver() {
+                if (!this.sfxEnabled) return;
+                this.init();
+                const melody = [523.25, 493.88, 440.00, 392.00, 523.25];
+                const durations = [0.14, 0.14, 0.14, 0.2, 0.4];
+                let offset = 0;
+
+                melody.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + offset;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + durations[idx]);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + durations[idx] + 0.02);
+                    offset += durations[idx] * 0.9;
+                });
+            }
+
+            // 아기자기한 마림바풍 BGM 루프
+            startBGM() {
+                this.stopBGM();
+                if (!this.bgmEnabled) return;
+                this.init();
+
+                // 따뜻하고 통통 튀는 C Major 펜타토닉 멜로디 시퀀스
+                const sequence = [
+                    523.25, 0, 659.25, 587.33, 523.25, 0, 392.00, 440.00,
+                    523.25, 587.33, 659.25, 0, 587.33, 0, 440.00, 0,
+                    523.25, 0, 659.25, 783.99, 659.25, 587.33, 523.25, 440.00,
+                    392.00, 440.00, 523.25, 0, 523.25, 0, 0, 0
+                ];
+
+                this.bgmStep = 0;
+                this.bgmTimer = setInterval(() => {
+                    if (!this.bgmEnabled || !this.ctx || this.ctx.state !== 'running') return;
+                    const freq = sequence[this.bgmStep % sequence.length];
+                    if (freq > 0) {
+                        const now = this.ctx.currentTime;
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now);
+                        gain.gain.setValueAtTime(0.045, now);
+                        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.22);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.24);
+                    }
+                    this.bgmStep++;
+                }, 230);
+            }
+
+            stopBGM() {
+                if (this.bgmTimer) {
+                    clearInterval(this.bgmTimer);
+                    this.bgmTimer = null;
+                }
+            }
+        }
+
+        const sound = new SoundManager();
+
+        // --- 3. 게임 상태 변수 ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const boardWrapper = document.getElementById('board-wrapper');
+
+        let grid = []; // 2차원 배열: { value: 1~9 | 0, isFig: boolean, scale: 1, alpha: 1 }
+        let particles = []; // 타일이 터질 때 생기는 파티클
+        let juiceSplashes = []; // 무화과 타일 제거 시 바닥에 튀는 과즙 얼룩
+        let floatingTexts = []; // "+2", "+6" 등 떠오르는 텍스트
+
+        let score = 0;
+        let clearedTilesCount = 0;
+        let clearedFigsCount = 0;
+        let currentBoardClearedTiles = 0; // 현재 판에서 제거한 타일 수
+        let boardClearCount = 0; // 완판 횟수
+        let bestScore = parseInt(localStorage.getItem(STORAGE_KEY_BEST) || '0', 10);
+        let timeLeft = GAME_DURATION;
+        let hintsLeft = MAX_HINTS;
+        let isPlaying = false;
+        let timerInterval = null;
+        let endModalTimeout = null;
+        let animationFrameId = null;
+
+        // 드래그 상태
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let dragCurrent = { x: 0, y: 0 };
+        let selectedCells = []; // 현재 드래그 사각형 내 유효한 셀 목록 [{r, c, value, isFig}]
+        let currentSum = 0;
+
+        // 힌트 하이라이트 & 종료 시 놓친 10 조합 하이라이트 상태
+        let hintRect = null; // { r1, c1, r2, c2, endTime }
+        let missedMoves = []; // 게임 종료 시 합이 10이 가능했던 사각형 목록
+        let missedCellsSet = new Set(); // 종료 시 빨간 배경으로 강조할 셀 좌표 Set ("r,c")
+
+        // 캔버스 논리적 해상도 및 셀 크기
+        let canvasWidth = 960;
+        let canvasHeight = 564.7;
+        let cellW = 0;
+        let cellH = 0;
+        let padX = 12;
+        let padY = 10;
+
+        // --- 4. DOM 요소 참조 ---
+        const scoreDisplay = document.getElementById('score-display');
+        const bestScoreDisplay = document.getElementById('best-score-display');
+        const timeText = document.getElementById('time-text');
+        const timeBar = document.getElementById('time-bar');
+        const hintCountEl = document.getElementById('hint-count');
+        const btnHint = document.getElementById('btn-hint');
+        const btnSfx = document.getElementById('btn-sfx');
+        const iconSfx = document.getElementById('icon-sfx');
+        const btnBgm = document.getElementById('btn-bgm');
+        const iconBgm = document.getElementById('icon-bgm');
+        const btnReset = document.getElementById('btn-reset');
+        const btnStart = document.getElementById('btn-start');
+        const btnRestartModal = document.getElementById('btn-restart-modal');
+        const btnRestartBanner = document.getElementById('btn-restart-banner');
+        const startOverlay = document.getElementById('start-overlay');
+        const gameoverOverlay = document.getElementById('gameover-overlay');
+        const gameoverBanner = document.getElementById('gameover-banner');
+        const toastMsg = document.getElementById('toast-msg');
+
+        // --- 5. 초기화 및 보드 생성 알고리즘 ---
+        function initBoardData() {
+            // 1~9 사이의 무작위 숫자 170개 생성 후 전체 합이 10의 배수가 되도록 보정
+            let nums = [];
+            let sum = 0;
+            for (let i = 0; i < TOTAL_CELLS - 1; i++) {
+                const n = Math.floor(Math.random() * 9) + 1;
+                nums.push(n);
+                sum += n;
+            }
+            // 마지막 숫자를 조정하여 전체 합이 10의 배수가 되도록 설정
+            let remainder = sum % 10;
+            let lastNum = remainder === 0 ? (Math.floor(Math.random() * 9) + 1) : (10 - remainder);
+            // 만약 remainder가 0이라서 임의의 수를 넣었다면 전체 합 10의 배수 유지를 위해 한 번 더 보정
+            if (remainder === 0) {
+                nums[0] = 10 - lastNum === 0 ? 5 : nums[0];
+                // 간단히 전체 합 재계산 후 보정
+                sum = nums.reduce((a, b) => a + b, 0);
+                remainder = sum % 10;
+                lastNum = remainder === 0 ? 5 : (10 - remainder);
+                if (remainder === 0) {
+                    // 첫 번째 원소를 조정
+                    nums[0] = nums[0] > 5 ? nums[0] - 5 : nums[0] + 4;
+                    sum = nums.reduce((a, b) => a + b, 0);
+                    lastNum = 10 - (sum % 10);
+                }
+            }
+            nums.push(lastNum);
+
+            // 피셔-예이츠 셔플로 골고루 섞기
+            for (let i = nums.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [nums[i], nums[j]] = [nums[j], nums[i]];
+            }
+
+            // 170칸 중 정확히 10칸만 스페셜 무화과(isFig: true)로 지정
+            const figFlags = Array(TOTAL_CELLS).fill(false);
+            for (let i = 0; i < SPECIAL_FIG_COUNT; i++) {
+                figFlags[i] = true;
+            }
+            for (let i = figFlags.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [figFlags[i], figFlags[j]] = [figFlags[j], figFlags[i]];
+            }
+
+            grid = [];
+            let idx = 0;
+            for (let r = 0; r < ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < COLS; c++) {
+                    row.push({
+                        value: nums[idx],
+                        isFig: figFlags[idx],
+                        scale: 1,
+                        alpha: 1,
+                        popDelay: (r + c) * 0.015 // 등장 애니메이션용 딜레이
+                    });
+                    idx++;
+                }
+                grid.push(row);
+            }
+        }
+
+        // --- 6. 반응형 캔버스 크기 조정 ---
+        function resizeCanvas() {
+            const rect = boardWrapper.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            canvasWidth = rect.width;
+            canvasHeight = rect.height;
+
+            padX = Math.max(4, canvasWidth * 0.012);
+            padY = Math.max(4, canvasHeight * 0.015);
+            cellW = Math.max(1, (canvasWidth - padX * 2) / COLS);
+            cellH = Math.max(1, (canvasHeight - padY * 2) / ROWS);
+        }
+
+        // --- 7. 합이 10이 되는 유효한 사각형 조합 탐색 (힌트 & 게임 종료 판별용) ---
+        function findAllValidMoves() {
+            // 2차원 누적합(Prefix Sum)으로 O(R^2 * C^2) 빠르게 탐색
+            const prefSum = Array.from({ length: ROWS + 1 }, () => Array(COLS + 1).fill(0));
+            const prefCount = Array.from({ length: ROWS + 1 }, () => Array(COLS + 1).fill(0));
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const val = grid[r][c].value;
+                    prefSum[r + 1][c + 1] = val + prefSum[r][c + 1] + prefSum[r + 1][c] - prefSum[r][c];
+                    prefCount[r + 1][c + 1] = (val > 0 ? 1 : 0) + prefCount[r][c + 1] + prefCount[r + 1][c] - prefCount[r][c];
+                }
+            }
+
+            const candidates = [];
+            const seenBoxes = new Set();
+
+            for (let r1 = 0; r1 < ROWS; r1++) {
+                for (let c1 = 0; c1 < COLS; c1++) {
+                    for (let r2 = r1; r2 < ROWS; r2++) {
+                        for (let c2 = c1; c2 < COLS; c2++) {
+                            const sum = prefSum[r2 + 1][c2 + 1] - prefSum[r1][c2 + 1] - prefSum[r2 + 1][c1] + prefSum[r1][c1];
+                            if (sum > 10) break; // 더 오른쪽으로 넓혀도 합이 10 초과이므로 가지치기
+                            if (sum === 10) {
+                                const count = prefCount[r2 + 1][c2 + 1] - prefCount[r1][c2 + 1] - prefCount[r2 + 1][c1] + prefCount[r1][c1];
+                                if (count >= 2) {
+                                    // 가장 타이트한 바운딩 박스로 축소 (빈 테두리 제거)
+                                    let minR = r2, maxR = r1, minC = c2, maxC = c1;
+                                    for (let rr = r1; rr <= r2; rr++) {
+                                        for (let cc = c1; cc <= c2; cc++) {
+                                            if (grid[rr][cc].value > 0) {
+                                                if (rr < minR) minR = rr;
+                                                if (rr > maxR) maxR = rr;
+                                                if (cc < minC) minC = cc;
+                                                if (cc > maxC) maxC = cc;
+                                            }
+                                        }
+                                    }
+                                    const key = `${minR},${minC},${maxR},${maxC}`;
+                                    if (!seenBoxes.has(key)) {
+                                        seenBoxes.add(key);
+                                        candidates.push({
+                                            r1: minR,
+                                            c1: minC,
+                                            r2: maxR,
+                                            c2: maxC,
+                                            area: (maxR - minR + 1) * (maxC - minC + 1)
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            candidates.sort((a, b) => a.area - b.area);
+            return candidates;
+        }
+
+        function findValidMove() {
+            const candidates = findAllValidMoves();
+            if (candidates.length === 0) return null;
+            // 면적이 작고 보기 쉬운 조합을 우선 추천
+            const topPool = candidates.slice(0, Math.min(5, candidates.length));
+            return topPool[Math.floor(Math.random() * topPool.length)];
+        }
+
+        // 시간 내 판을 모두 클리어했을 때 새 보드 리필
+        function refillNewBoard(reasonText = '✨ 보드 클리어! 새로운 무화과 판이 열렸습니다!') {
+            boardClearCount++;
+            currentBoardClearedTiles = 0;
+            isDragging = false;
+            selectedCells = [];
+            currentSum = 0;
+            hintRect = null;
+
+            sound.playHint();
+            initBoardData();
+            showToast(reasonText);
+
+            // 보드 중앙에 보너스 리필 안내 텍스트
+            floatingTexts.push({
+                x: canvasWidth * 0.5,
+                y: canvasHeight * 0.5,
+                text: `NEW BOARD! (${boardClearCount + 1}라운드)`,
+                isBonus: true,
+                alpha: 1,
+                vy: -0.9
+            });
+        }
+
+        // --- 8. 토스트 메시지 표시 ---
+        let toastTimeout = null;
+        function showToast(message) {
+            toastMsg.textContent = message;
+            toastMsg.classList.remove('opacity-0');
+            toastMsg.classList.add('opacity-100');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toastMsg.classList.remove('opacity-100');
+                toastMsg.classList.add('opacity-0');
+            }, 2200);
+        }
+
+        // --- 9. 게임 시작 / 리셋 / 종료 흐름 ---
+        function startGame() {
+            sound.init();
+            sound.playPop(4);
+
+            if (endModalTimeout) {
+                clearTimeout(endModalTimeout);
+                endModalTimeout = null;
+            }
+
+            score = 0;
+            clearedTilesCount = 0;
+            clearedFigsCount = 0;
+            currentBoardClearedTiles = 0;
+            boardClearCount = 0;
+            timeLeft = GAME_DURATION;
+            hintsLeft = MAX_HINTS;
+            isPlaying = true;
+            isDragging = false;
+            selectedCells = [];
+            currentSum = 0;
+            hintRect = null;
+            missedMoves = [];
+            missedCellsSet.clear();
+            particles = [];
+            juiceSplashes = [];
+            floatingTexts = [];
+
+            updateHUD();
+            initBoardData();
+            resizeCanvas();
+
+            startOverlay.classList.add('hidden');
+            gameoverOverlay.classList.add('hidden');
+            gameoverBanner.classList.add('hidden');
+
+            if (sound.bgmEnabled) {
+                sound.startBGM();
+            }
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isPlaying) return;
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    updateTimerUI();
+                    endGame('타임 오버!', '제한 시간 120초가 모두 지났습니다.');
+                } else {
+                    updateTimerUI();
+                }
+            }, 100);
+        }
+
+        function endGame(title, subtitle) {
+            isPlaying = false;
+            isDragging = false;
+            selectedCells = [];
+            currentSum = 0;
+            hintRect = null;
+            clearInterval(timerInterval);
+            sound.stopBGM();
+            sound.playGameOver();
+
+            // 남은 타일 중 합이 10이 가능했던 모든 조합 탐색하여 빨간 배경으로 강조
+            missedMoves = findAllValidMoves();
+            missedCellsSet.clear();
+            missedMoves.forEach(move => {
+                for (let rr = move.r1; rr <= move.r2; rr++) {
+                    for (let cc = move.c1; cc <= move.c2; cc++) {
+                        if (grid[rr][cc] && grid[rr][cc].value > 0) {
+                            missedCellsSet.add(`${rr},${cc}`);
+                        }
+                    }
+                }
+            });
+
+            const isNewRecord = score > bestScore && score > 0;
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem(STORAGE_KEY_BEST, bestScore.toString());
+            }
+
+            updateHUD();
+
+            document.getElementById('banner-title').textContent = title;
+            const bannerNewRecord = document.getElementById('banner-new-record');
+            if (isNewRecord) {
+                bannerNewRecord.classList.remove('hidden');
+            } else {
+                bannerNewRecord.classList.add('hidden');
+            }
+
+            document.getElementById('banner-subtitle').textContent = `최종 점수: ${score}점`;
+
+            // 보드 아래쪽 배너만 띄워 빨간 배경 오답 표시와 상단 점수를 그대로 유지
+            gameoverBanner.classList.remove('hidden');
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = score;
+            bestScoreDisplay.textContent = bestScore;
+            hintCountEl.textContent = hintsLeft;
+            btnHint.disabled = hintsLeft <= 0 || !isPlaying;
+            updateTimerUI();
+        }
+
+        function updateTimerUI() {
+            const ceilSec = Math.ceil(timeLeft);
+            timeText.textContent = `${ceilSec}초`;
+            const pct = Math.max(0, (timeLeft / GAME_DURATION) * 100);
+            timeBar.style.width = `${pct}%`;
+
+            // 남은 시간에 따른 게이지 색상 변화
+            if (pct > 50) {
+                timeBar.className = 'h-full bg-gradient-to-r from-[#10B981] to-[#84CC16] rounded-full transition-all duration-150 ease-linear';
+            } else if (pct > 20) {
+                timeBar.className = 'h-full bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] rounded-full transition-all duration-150 ease-linear';
+            } else {
+                timeBar.className = 'h-full bg-gradient-to-r from-[#EF4444] to-[#F43F5E] rounded-full transition-all duration-150 ease-linear';
+            }
+        }
+
+        // --- 10. 드래그 입력 처리 (마우스 & 터치 통합) ---
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: Math.max(0, Math.min(canvasWidth, clientX - rect.left)),
+                y: Math.max(0, Math.min(canvasHeight, clientY - rect.top))
+            };
+        }
+
+        function handleDragStart(e) {
+            if (!isPlaying) return;
+            if (e.type === 'mousedown' && e.button !== 0) return;
+            e.preventDefault();
+
+            const pos = getPointerPos(e);
+            isDragging = true;
+            dragStart = { ...pos };
+            dragCurrent = { ...pos };
+            updateSelection();
+        }
+
+        function handleDragMove(e) {
+            if (!isPlaying || !isDragging) return;
+            e.preventDefault();
+            dragCurrent = getPointerPos(e);
+            const prevCount = selectedCells.length;
+            updateSelection();
+            if (selectedCells.length !== prevCount && selectedCells.length > 0) {
+                sound.playTick();
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (!isPlaying || !isDragging) return;
+            e.preventDefault();
+            isDragging = false;
+
+            if (currentSum === 10 && selectedCells.length > 0) {
+                // 성공! 선택된 타일 제거 및 파티클/점수 처리 (무화과는 5점, 일반 타일은 1점)
+                const removedCount = selectedCells.length;
+                let earnedPoints = 0;
+                let figHitCount = 0;
+
+                let centerX = 0;
+                let centerY = 0;
+
+                selectedCells.forEach(cell => {
+                    const cx = padX + (cell.c + 0.5) * cellW;
+                    const cy = padY + (cell.r + 0.5) * cellH;
+                    centerX += cx;
+                    centerY += cy;
+
+                    if (cell.isFig) {
+                        earnedPoints += FIG_SCORE;
+                        figHitCount++;
+                        clearedFigsCount++;
+                        spawnFigParticles(cx, cy, true);
+                    } else {
+                        earnedPoints += NORMAL_SCORE;
+                    }
+
+                    clearedTilesCount++;
+                    currentBoardClearedTiles++;
+                    grid[cell.r][cell.c].value = 0;
+                    grid[cell.r][cell.c].isFig = false;
+                });
+
+                sound.playPop(removedCount + figHitCount * 2);
+
+                centerX /= removedCount;
+                centerY /= removedCount;
+
+                score += earnedPoints;
+                if (score > bestScore) {
+                    bestScore = score;
+                    localStorage.setItem(STORAGE_KEY_BEST, bestScore.toString());
+                }
+
+                hintRect = null;
+                updateHUD();
+
+                // 현재 판의 타일을 모두 제거했거나 더 이상 합이 10이 되는 조합이 없는 경우 처리
+                if (currentBoardClearedTiles === TOTAL_CELLS) {
+                    setTimeout(() => {
+                        if (isPlaying && timeLeft > 0) {
+                            refillNewBoard('🎉 완벽 클리어! 남은 시간 동안 새 판에 도전하세요!');
+                        }
+                    }, 350);
+                } else {
+                    const nextMove = findValidMove();
+                    if (!nextMove) {
+                        setTimeout(() => {
+                            if (isPlaying && timeLeft > 0) {
+                                refillNewBoard('✨ 만들 수 있는 10을 모두 찾았어요! 새 판이 열립니다!');
+                            }
+                        }, 350);
+                    }
+                }
+            } else if (selectedCells.length > 0) {
+                // 실패 시 가벼운 피드백
+                sound.playFail();
+            }
+
+            selectedCells = [];
+            currentSum = 0;
+        }
+
+        function updateSelection() {
+            const x1 = Math.min(dragStart.x, dragCurrent.x);
+            const y1 = Math.min(dragStart.y, dragCurrent.y);
+            const x2 = Math.max(dragStart.x, dragCurrent.x);
+            const y2 = Math.max(dragStart.y, dragCurrent.y);
+
+            selectedCells = [];
+            currentSum = 0;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = grid[r][c];
+                    if (!cell || cell.value === 0) continue;
+
+                    const cx = padX + (c + 0.5) * cellW;
+                    const cy = padY + (r + 0.5) * cellH;
+
+                    if (cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2) {
+                        selectedCells.push({ r, c, value: cell.value, isFig: cell.isFig });
+                        currentSum += cell.value;
+                    }
+                }
+            }
+        }
+
+        // --- 11. 파티클 및 무화과 과즙 터짐 효과 생성 ---
+        function spawnFigParticles(x, y, isFig = false) {
+            if (!isFig) return;
+
+            // 1) 보드 위에 살짝 번지는 은은한 무화과 과즙 얼룩(Splash)
+            const splashRadius = Math.max(11, Math.min(cellW, cellH) * 0.34);
+            const lobes = [];
+            const lobeCount = 5;
+            for (let i = 0; i < lobeCount; i++) {
+                const angle = (Math.PI * 2 * i) / lobeCount + (Math.random() - 0.5) * 0.3;
+                lobes.push({
+                    angle,
+                    dist: splashRadius * (0.4 + Math.random() * 0.35),
+                    r: splashRadius * (0.2 + Math.random() * 0.16)
+                });
+            }
+            juiceSplashes.push({
+                x,
+                y,
+                baseRadius: splashRadius * 0.55,
+                lobes,
+                scale: 0.35,
+                alpha: 0.48
+            });
+
+            // 2) 적당히 톡 튀는 과즙 방울 + 노란 무화과 씨앗 입자
+            const figColors = ['#E11D48', '#F43F5E', '#BE123C', '#FDE047'];
+            for (let i = 0; i < 10; i++) {
+                const angle = (Math.PI * 2 * i) / 10 + (Math.random() - 0.5) * 0.3;
+                const isSeed = i % 3 === 0;
+                const speed = 1.4 + Math.random() * 2.0;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 0.8,
+                    radius: isSeed ? (1.8 + Math.random() * 0.8) : (2.2 + Math.random() * 1.8),
+                    color: isSeed ? '#FEF08A' : figColors[Math.floor(Math.random() * (figColors.length - 1))],
+                    alpha: 0.9,
+                    gravity: isSeed ? 0.14 : 0.18,
+                    drag: 0.94,
+                    isDroplet: !isSeed
+                });
+            }
+        }
+
+        // --- 12. 타일 & 스페셜 무화과(Fig) 그래픽 렌더링 ---
+        function drawNormalTile(ctx, cx, cy, size, num, isSelected) {
+            if (!Number.isFinite(size) || size <= 2) return;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            const scale = isSelected ? 1.07 : 1.0;
+            ctx.scale(scale, scale);
+
+            const boxSize = Math.max(2, size * 0.84);
+            const half = boxSize / 2;
+            const corner = Math.max(4, boxSize * 0.24);
+
+            // 바닥 그림자
+            ctx.fillStyle = 'rgba(92, 44, 77, 0.1)';
+            roundRect(ctx, -half, -half + 2.5, boxSize, boxSize, corner);
+            ctx.fill();
+
+            // 타일 배경 그라데이션 (따뜻한 크림/아몬드 톤)
+            const bgGrad = ctx.createLinearGradient(0, -half, 0, half);
+            if (isSelected) {
+                bgGrad.addColorStop(0, '#F3E8FF');
+                bgGrad.addColorStop(1, '#E9D5FF');
+            } else {
+                bgGrad.addColorStop(0, '#FFFBEB');
+                bgGrad.addColorStop(1, '#FDE68A');
+            }
+            ctx.fillStyle = bgGrad;
+            roundRect(ctx, -half, -half, boxSize, boxSize, corner);
+            ctx.fill();
+
+            // 테두리
+            ctx.lineWidth = isSelected ? 2.2 : 1.3;
+            ctx.strokeStyle = isSelected ? '#9333EA' : '#E5C494';
+            ctx.stroke();
+
+            // 숫자 렌더링
+            const fontSize = Math.max(12, Math.floor(size * 0.45));
+            ctx.font = `900 ${fontSize}px 'Noto Sans KR', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = isSelected ? '#581C87' : '#5C2C4D';
+            ctx.fillText(num.toString(), 0, 1);
+
+            ctx.restore();
+        }
+
+        function drawFigIcon(ctx, cx, cy, size, num, isSelected) {
+            if (!Number.isFinite(size) || size <= 2) return;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // 선택 시 살짝 통통 튀어오르는 스케일 효과 (합이 10인지 여부는 미리 보여주지 않음)
+            const scale = isSelected ? 1.08 : 1.0;
+            ctx.scale(scale, scale);
+
+            const r = Math.max(1, size * 0.44);
+
+            // 스페셜 5점 무화과 은은한 후광 효과
+            ctx.beginPath();
+            ctx.arc(0, r * 0.05, r * 1.05, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(250, 204, 21, 0.22)';
+            ctx.fill();
+
+            // 바닥 그림자
+            ctx.beginPath();
+            ctx.ellipse(0, r * 0.92, r * 0.72, r * 0.22, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(74, 31, 61, 0.14)';
+            ctx.fill();
+
+            // 1) 무화과 외피 (물방울 모양의 진보라색 껍질)
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 1.08);
+            ctx.bezierCurveTo(r * 0.35, -r * 0.95, r * 1.05, -r * 0.25, r * 0.95, r * 0.38);
+            ctx.bezierCurveTo(r * 0.85, r * 0.92, r * 0.35, r * 1.02, 0, r * 1.02);
+            ctx.bezierCurveTo(-r * 0.35, r * 1.02, -r * 0.85, r * 0.92, -r * 0.95, r * 0.38);
+            ctx.bezierCurveTo(-r * 1.05, -r * 0.25, -r * 0.35, -r * 0.95, 0, -r * 1.08);
+            ctx.closePath();
+
+            const skinGrad = ctx.createLinearGradient(0, -r, 0, r);
+            if (isSelected) {
+                skinGrad.addColorStop(0, '#9D4EDD');
+                skinGrad.addColorStop(1, '#5A189A');
+            } else {
+                skinGrad.addColorStop(0, '#7E3B68');
+                skinGrad.addColorStop(1, '#4A1F3D');
+            }
+            ctx.fillStyle = skinGrad;
+            ctx.fill();
+
+            // 외곽선 하이라이트 (스페셜 황금빛 테두리)
+            ctx.lineWidth = isSelected ? 2.2 : 1.6;
+            ctx.strokeStyle = isSelected ? '#F5D0FE' : '#F59E0B';
+            ctx.stroke();
+
+            // 꼭지 잎사귀 포인트
+            ctx.beginPath();
+            ctx.ellipse(r * 0.18, -r * 1.02, r * 0.24, r * 0.11, -0.35, 0, Math.PI * 2);
+            ctx.fillStyle = '#65A30D';
+            ctx.fill();
+
+            // 2) 무화과 속살 테두리 (크림 핑크빛 내피)
+            ctx.beginPath();
+            ctx.arc(0, r * 0.16, r * 0.72, 0, Math.PI * 2);
+            ctx.fillStyle = '#FCE7F3';
+            ctx.fill();
+
+            // 3) 달콤한 붉은빛 무화과 과육 (가운데 원형 단면)
+            const fleshGrad = ctx.createRadialGradient(0, r * 0.12, r * 0.05, 0, r * 0.16, r * 0.64);
+            fleshGrad.addColorStop(0, '#FB7185');
+            fleshGrad.addColorStop(0.75, '#E11D48');
+            fleshGrad.addColorStop(1, '#BE123C');
+
+            ctx.beginPath();
+            ctx.arc(0, r * 0.16, r * 0.63, 0, Math.PI * 2);
+            ctx.fillStyle = fleshGrad;
+            ctx.fill();
+
+            // 과육 주변의 작은 노란 씨앗 점들 (가독성을 해치지 않게 가장자리에 배치)
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
+            const seedAngles = [0.4, 1.1, 2.0, 2.7, 3.6, 4.3, 5.2, 5.9];
+            for (let a of seedAngles) {
+                const sx = Math.cos(a) * (r * 0.48);
+                const sy = r * 0.16 + Math.sin(a) * (r * 0.48);
+                ctx.beginPath();
+                ctx.arc(sx, sy, Math.max(0.9, r * 0.055), 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 4) 선명한 숫자 표시 (외곽선 + 화이트 텍스트로 어떤 화면 크기에서도 또렷하게)
+            const fontSize = Math.max(12, Math.floor(size * 0.44));
+            ctx.font = `900 ${fontSize}px 'Noto Sans KR', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // 텍스트 가독성을 위한 진한 자주색 외곽선
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = Math.max(2.5, fontSize * 0.18);
+            ctx.strokeStyle = '#4A102A';
+            ctx.strokeText(num.toString(), 0, r * 0.18);
+
+            // 숫자 본체
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText(num.toString(), 0, r * 0.18);
+
+            ctx.restore();
+        }
+
+        // --- 13. 메인 렌더링 루프 ---
+        function renderLoop() {
+            if (canvasWidth <= 0 || canvasHeight <= 0 || cellW <= 1 || cellH <= 1) {
+                resizeCanvas();
+                animationFrameId = requestAnimationFrame(renderLoop);
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // 미세한 격자 가이드 배경 점
+            ctx.fillStyle = 'rgba(138, 98, 125, 0.12)';
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cx = padX + (c + 0.5) * cellW;
+                    const cy = padY + (r + 0.5) * cellH;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 힌트 영역 반짝임 표시
+            if (hintRect && Date.now() < hintRect.endTime) {
+                const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.012);
+                const hx = padX + hintRect.c1 * cellW - 2;
+                const hy = padY + hintRect.r1 * cellH - 2;
+                const hw = (hintRect.c2 - hintRect.c1 + 1) * cellW + 4;
+                const hh = (hintRect.r2 - hintRect.r1 + 1) * cellH + 4;
+
+                ctx.save();
+                ctx.fillStyle = `rgba(251, 191, 36, ${0.18 + pulse * 0.22})`;
+                ctx.strokeStyle = `rgba(245, 158, 11, ${0.7 + pulse * 0.3})`;
+                ctx.lineWidth = 3;
+                roundRect(ctx, hx, hy, hw, hh, 10);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            } else if (hintRect) {
+                hintRect = null;
+            }
+
+            // 선택된 셀 빠른 조회를 위한 Set
+            const selectedSet = new Set(selectedCells.map(s => `${s.r},${s.c}`));
+            const iconBaseSize = Math.min(cellW, cellH);
+
+            // 무화과 과즙 얼룩(Splash) 업데이트 및 그리기 (타일 아래층에 자연스럽게 스며듦)
+            for (let i = juiceSplashes.length - 1; i >= 0; i--) {
+                const sp = juiceSplashes[i];
+                sp.scale += (1 - sp.scale) * 0.28;
+                sp.alpha -= 0.011;
+
+                if (sp.alpha <= 0) {
+                    juiceSplashes.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.translate(sp.x, sp.y);
+                ctx.scale(sp.scale, sp.scale);
+                ctx.globalAlpha = sp.alpha;
+
+                const grad = ctx.createRadialGradient(0, 0, sp.baseRadius * 0.15, 0, 0, sp.baseRadius * 1.45);
+                grad.addColorStop(0, '#F43F5E');
+                grad.addColorStop(0.65, '#E11D48');
+                grad.addColorStop(1, 'rgba(190, 18, 60, 0.25)');
+                ctx.fillStyle = grad;
+
+                // 중앙 과즙 웅덩이
+                ctx.beginPath();
+                ctx.arc(0, 0, sp.baseRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 주변으로 튄 방울 얼룩들
+                for (const lobe of sp.lobes) {
+                    const lx = Math.cos(lobe.angle) * lobe.dist;
+                    const ly = Math.sin(lobe.angle) * lobe.dist;
+                    ctx.beginPath();
+                    ctx.arc(lx, ly, lobe.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            // 타일 및 스페셜 무화과 아이콘 그리기
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = grid[r][c];
+                    if (!cell || cell.value === 0) continue;
+
+                    const cx = padX + (c + 0.5) * cellW;
+                    const cy = padY + (r + 0.5) * cellH;
+                    const isSelected = selectedSet.has(`${r},${c}`);
+                    const isMissed = missedCellsSet.has(`${r},${c}`);
+
+                    // 시간 종료 시 못 제거한 10 조합 타일 빨간 배경 강조
+                    if (isMissed) {
+                        const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.015);
+                        ctx.save();
+                        ctx.fillStyle = `rgba(239, 68, 68, ${0.34 + pulse * 0.24})`;
+                        roundRect(ctx, padX + c * cellW + 1, padY + r * cellH + 1, cellW - 2, cellH - 2, 8);
+                        ctx.fill();
+                        ctx.restore();
+                    } else if (isSelected) {
+                        // 선택된 셀 배경 하이라이트 (합계 힌트 없이 단일 톤 표시)
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(168, 85, 247, 0.2)';
+                        roundRect(ctx, padX + c * cellW + 1, padY + r * cellH + 1, cellW - 2, cellH - 2, 8);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    if (cell.isFig) {
+                        drawFigIcon(ctx, cx, cy, iconBaseSize, cell.value, isSelected);
+                    } else {
+                        drawNormalTile(ctx, cx, cy, iconBaseSize, cell.value, isSelected);
+                    }
+                }
+            }
+
+            // 드래그 선택 사각형 박스 (숫자 합계 미리보기 없이 깔끔한 선택 영역만 표시)
+            if (isDragging) {
+                const x = Math.min(dragStart.x, dragCurrent.x);
+                const y = Math.min(dragStart.y, dragCurrent.y);
+                const w = Math.abs(dragCurrent.x - dragStart.x);
+                const h = Math.abs(dragCurrent.y - dragStart.y);
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(147, 51, 234, 0.16)';
+                ctx.strokeStyle = 'rgba(126, 34, 206, 0.85)';
+                ctx.lineWidth = 2.5;
+
+                roundRect(ctx, x, y, w, h, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 파티클 업데이트 및 그리기
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.vx *= (p.drag || 0.98);
+                p.vy *= (p.drag || 0.98);
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.alpha -= p.isDroplet ? 0.026 : 0.032;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                if (p.isDroplet) {
+                    // 날아가는 방향으로 살짝 길쭉한 물방울 형태
+                    const angle = Math.atan2(p.vy, p.vx);
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(angle);
+                    ctx.ellipse(0, 0, p.radius * 1.35, p.radius * 0.78, 0, 0, Math.PI * 2);
+                } else {
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                }
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 떠오르는 점수 텍스트 업데이트 및 그리기
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.025;
+
+                if (ft.alpha <= 0) {
+                    floatingTexts.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = ft.alpha;
+                ctx.font = ft.isBonus ? "400 28px 'Jua', sans-serif" : "400 24px 'Jua', sans-serif";
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = ft.isBonus ? '#4A1F3D' : '#FFFFFF';
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillStyle = ft.isBonus ? '#FACC15' : '#10B981';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+
+            animationFrameId = requestAnimationFrame(renderLoop);
+        }
+
+        // 둥근 사각형 헬퍼 함수
+        function roundRect(ctx, x, y, width, height, radius) {
+            if (width < 2 * radius) radius = width / 2;
+            if (height < 2 * radius) radius = height / 2;
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + width, y, x + width, y + height, radius);
+            ctx.arcTo(x + width, y + height, x, y + height, radius);
+            ctx.arcTo(x, y + height, x, y, radius);
+            ctx.arcTo(x, y, x + width, y, radius);
+            ctx.closePath();
+        }
+
+        // --- 14. 이벤트 리스너 연결 ---
+        // 마우스 이벤트
+        canvas.addEventListener('mousedown', handleDragStart);
+        window.addEventListener('mousemove', handleDragMove);
+        window.addEventListener('mouseup', handleDragEnd);
+
+        // 터치 이벤트 (passive: false 로 스크롤 간섭 차단)
+        canvas.addEventListener('touchstart', handleDragStart, { passive: false });
+        window.addEventListener('touchmove', handleDragMove, { passive: false });
+        window.addEventListener('touchend', handleDragEnd, { passive: false });
+
+        // 버튼 이벤트
+        btnStart.addEventListener('click', startGame);
+        btnRestartModal.addEventListener('click', startGame);
+        btnRestartBanner.addEventListener('click', startGame);
+        btnReset.addEventListener('click', () => {
+            startGame();
+            showToast('새로운 무화과 보드로 다시 시작합니다!');
+        });
+
+        // 힌트 버튼 클릭
+        btnHint.addEventListener('click', () => {
+            if (!isPlaying || hintsLeft <= 0) return;
+
+            const move = findValidMove();
+            if (move) {
+                hintsLeft--;
+                sound.playHint();
+                hintRect = {
+                    ...move,
+                    endTime: Date.now() + 2600
+                };
+                updateHUD();
+                showToast('💡 반짝이는 영역을 드래그해 보세요!');
+            } else {
+                showToast('더 이상 합이 10이 되는 조합이 없습니다!');
+                setTimeout(() => {
+                    if (isPlaying) {
+                        endGame('수확 완료!', '더 이상 만들 수 있는 10 조합이 없습니다.');
+                    }
+                }, 1200);
+            }
+        });
+
+        // 효과음 토글
+        btnSfx.addEventListener('click', () => {
+            sound.sfxEnabled = !sound.sfxEnabled;
+            iconSfx.textContent = sound.sfxEnabled ? '🔊' : '🔇';
+            btnSfx.classList.toggle('opacity-60', !sound.sfxEnabled);
+            if (sound.sfxEnabled) {
+                sound.playTick();
+                showToast('효과음이 켜졌습니다.');
+            } else {
+                showToast('효과음이 꺼졌습니다.');
+            }
+        });
+
+        // BGM 토글
+        btnBgm.addEventListener('click', () => {
+            sound.bgmEnabled = !sound.bgmEnabled;
+            iconBgm.textContent = sound.bgmEnabled ? '🎵' : '🔕';
+            btnBgm.classList.toggle('bg-amber-200', sound.bgmEnabled);
+            if (sound.bgmEnabled) {
+                if (isPlaying) sound.startBGM();
+                showToast('배경음악이 켜졌습니다.');
+            } else {
+                sound.stopBGM();
+                showToast('배경음악이 꺼졌습니다.');
+            }
+        });
+
+        // 화면 리사이즈 대응
+        window.addEventListener('resize', resizeCanvas);
+        if (typeof ResizeObserver !== 'undefined') {
+            const resizeObserver = new ResizeObserver(() => resizeCanvas());
+            resizeObserver.observe(boardWrapper);
+        }
+
+        // --- 15. 초기 실행 ---
+        window.onload = function () {
+            bestScoreDisplay.textContent = bestScore;
+            initBoardData();
+            resizeCanvas();
+            renderLoop();
+        };
+    </script>
+</body>
+</html>
